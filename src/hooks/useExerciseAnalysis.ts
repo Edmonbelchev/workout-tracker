@@ -76,7 +76,7 @@ export function useExerciseAnalysis({
     };
   }, [enabled, exerciseId, poseRef]);
 
-  if (!enabled) {
+  if (!enabled || workoutState.exerciseId !== exerciseId) {
     return idleWorkoutState(exerciseId);
   }
 

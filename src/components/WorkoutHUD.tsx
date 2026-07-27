@@ -96,12 +96,6 @@ export function WorkoutHUD({
           )}
         </div>
       </div>
-
-      {trackingQuality === "poor" && isDetectorReady && workout.isAvailable && (
-        <div className="mx-auto max-w-sm rounded-lg border border-amber-500/30 bg-amber-950/60 px-4 py-2 text-center text-sm text-amber-200 backdrop-blur-sm">
-          {workout.cameraHint}
-        </div>
-      )}
     </div>
   );
 }

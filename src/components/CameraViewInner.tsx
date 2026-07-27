@@ -49,7 +49,7 @@ export function CameraViewInner() {
     await start();
   }, [start]);
 
-  const cameraIdle = status === "idle" || status === "error";
+  const selectorDisabled = status === "requesting";
 
   return (
     <div className="relative flex min-h-full flex-1 flex-col bg-zinc-950">
@@ -68,14 +68,18 @@ export function CameraViewInner() {
           <ExerciseSelector
             value={exerciseId}
             onChange={setExerciseId}
-            disabled={!cameraIdle}
+            disabled={selectorDisabled}
           />
-          {!cameraIdle && (
-            <p className="mt-2 text-center text-xs text-zinc-600">
-              Stop camera to switch exercises
-            </p>
-          )}
         </div>
+
+        {detectionEnabled &&
+          isDetectorReady &&
+          workout.trackingQuality === "poor" &&
+          workout.isAvailable && (
+            <div className="mb-3 w-full max-w-lg rounded-lg border border-amber-500/30 bg-amber-950/80 px-4 py-2 text-center text-sm text-amber-200 backdrop-blur-sm">
+              {workout.cameraHint}
+            </div>
+          )}
 
         <div className="relative aspect-[3/4] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-800 bg-black shadow-2xl shadow-black/50">
           <div className="absolute inset-0 scale-x-[-1]">
