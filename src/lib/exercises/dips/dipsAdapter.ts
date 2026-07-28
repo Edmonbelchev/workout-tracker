@@ -1,10 +1,10 @@
 import {
-  formatPushupDepthStatus,
-  formatPushupPhase,
-  PushupAnalyzer,
-  type PushupAnalysis,
-  type PushupStateTransition,
-} from "@/lib/exercises/pushup/PushupAnalyzer";
+  DipsAnalyzer,
+  formatDipsDepthStatus,
+  formatDipsPhase,
+  type DipsAnalysis,
+  type DipsStateTransition,
+} from "@/lib/exercises/dips/DipsAnalyzer";
 import { formatAngle } from "@/lib/geometry/formatAngle";
 import { formatCameraView } from "@/lib/pose/cameraView";
 import type {
@@ -14,11 +14,11 @@ import type {
   WorkoutState,
 } from "@/lib/exercises/types";
 
-export function createPushupAdapter(
+export function createDipsAdapter(
   options: ExerciseAnalyzerFactoryOptions = {},
-): ExerciseAnalyzerAdapter<PushupAnalysis> {
-  const analyzer = new PushupAnalyzer({
-    onTransition: (transition: PushupStateTransition) => {
+): ExerciseAnalyzerAdapter<DipsAnalysis> {
+  const analyzer = new DipsAnalyzer({
+    onTransition: (transition: DipsStateTransition) => {
       if (options.debug) {
         options.onTransition?.(
           `${transition.from.toUpperCase()} → ${transition.to.toUpperCase()} (${transition.elbowAngle?.toFixed(1)}°)`,
@@ -35,14 +35,14 @@ export function createPushupAdapter(
     },
   });
 
-  return { analyzer, toWorkoutState: pushupToWorkoutState };
+  return { analyzer, toWorkoutState: dipsToWorkoutState };
 }
 
-export function pushupToWorkoutState(analysis: PushupAnalysis): WorkoutState {
+export function dipsToWorkoutState(analysis: DipsAnalysis): WorkoutState {
   const hudFields: HudField[] = [
     {
       label: "Depth",
-      value: formatPushupDepthStatus(analysis.depthStatus),
+      value: formatDipsDepthStatus(analysis.depthStatus),
       variant:
         analysis.depthStatus === "good"
           ? "good"
@@ -52,40 +52,28 @@ export function pushupToWorkoutState(analysis: PushupAnalysis): WorkoutState {
     },
     { label: "Left elbow", value: formatAngle(analysis.metrics.leftElbowAngle) },
     { label: "Right elbow", value: formatAngle(analysis.metrics.rightElbowAngle) },
-    { label: "Body line", value: formatAngle(analysis.metrics.bodyLineAngle) },
-    {
-      label: "Feedback",
-      value: analysis.feedback,
-      variant: analysis.trackingQuality === "good" ? "good" : "warn",
-    },
   ];
 
   const debugLines = [
     `View: ${formatCameraView(analysis.metrics.cameraView)}`,
     `Flexion: ${formatAngle(analysis.metrics.flexionAngle)}`,
-    `Smoothed elbow: ${formatAngle(analysis.smoothedElbowAngle)}`,
+    `Shoulder-hip gap: ${analysis.metrics.shoulderHipGap?.toFixed(3) ?? "—"}`,
     ...analysis.transitionLog.map(
       (t) => `${t.from} → ${t.to} (${t.elbowAngle?.toFixed(1)}°)`,
     ),
   ];
 
-  if (analysis.lastRepComplete) {
-    debugLines.unshift(
-      `Last rep: ${analysis.lastRepComplete.valid ? "VALID" : "INVALID"} (deepest ${analysis.lastRepComplete.deepestElbowAngle.toFixed(1)}°)`,
-    );
-  }
-
   return {
-    exerciseId: "push-up",
-    exerciseName: "Push-up",
+    exerciseId: "dips",
+    exerciseName: "Dips",
     trackingQuality: analysis.trackingQuality,
     isAvailable: true,
     reps: analysis.reps,
     invalidReps: analysis.invalidReps,
-    phase: formatPushupPhase(analysis.phase),
+    phase: formatDipsPhase(analysis.phase),
     feedback: analysis.feedback,
     coachingMessage: analysis.coachingMessage,
-    isActivePhase: analysis.phase !== "plank",
+    isActivePhase: analysis.phase !== "top",
     hudFields,
     lastRepComplete: analysis.lastRepComplete
       ? {
@@ -95,7 +83,7 @@ export function pushupToWorkoutState(analysis: PushupAnalysis): WorkoutState {
           invalidReason: analysis.lastRepComplete.valid ? undefined : "Go slightly lower",
         }
       : null,
-    cameraHint: "Front or side view — show shoulders, arms, and hips.",
+    cameraHint: "Front or side view — show arms, shoulders, and hips.",
     debugLines,
   };
 }

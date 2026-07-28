@@ -59,12 +59,14 @@ export const EMPTY_SQUAT_ANALYSIS: SquatAnalysis = {
   trackingQuality: "poor",
   phase: "standing",
   metrics: {
+    cameraView: "unknown",
     leftKneeAngle: null,
     rightKneeAngle: null,
     leftHipAngle: null,
     rightHipAngle: null,
     torsoInclination: null,
     averageKneeAngle: null,
+    flexionAngle: null,
   },
   smoothedKneeAngle: null,
   reps: 0,
@@ -118,7 +120,7 @@ export class SquatAnalyzer implements ExerciseAnalyzer<SquatAnalysis> {
   analyze(pose: Pose | null, trackingQuality: TrackingQuality = "poor"): SquatAnalysis {
     const metrics = calculateSquatMetrics(pose);
 
-    if (trackingQuality === "poor" || metrics.averageKneeAngle === null) {
+    if (trackingQuality === "poor" || metrics.flexionAngle === null) {
       this.kneeAngleSmoother.reset();
       this.coachingMessage = null;
       return this.buildAnalysis(
@@ -128,7 +130,7 @@ export class SquatAnalyzer implements ExerciseAnalyzer<SquatAnalysis> {
       );
     }
 
-    const smoothedKneeAngle = this.kneeAngleSmoother.update(metrics.averageKneeAngle);
+    const smoothedKneeAngle = this.kneeAngleSmoother.update(metrics.flexionAngle);
     this.updatePhase(smoothedKneeAngle, metrics);
 
     return this.buildAnalysis(metrics, trackingQuality, this.feedback, smoothedKneeAngle);

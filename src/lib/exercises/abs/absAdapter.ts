@@ -6,6 +6,7 @@ import {
   type AbsStateTransition,
 } from "@/lib/exercises/abs/AbsAnalyzer";
 import { formatAngle } from "@/lib/geometry/formatAngle";
+import { formatCameraView } from "@/lib/pose/cameraView";
 import type {
   ExerciseAnalyzerAdapter,
   ExerciseAnalyzerFactoryOptions,
@@ -59,6 +60,8 @@ export function absToWorkoutState(analysis: AbsAnalysis): WorkoutState {
   ];
 
   const debugLines = [
+    `View: ${formatCameraView(analysis.metrics.cameraView)}`,
+    `Flexion: ${formatAngle(analysis.metrics.flexionAngle)}`,
     `Smoothed hip: ${formatAngle(analysis.smoothedHipAngle)}`,
     ...analysis.transitionLog.map(
       (t) => `${t.from} → ${t.to} (${t.hipAngle?.toFixed(1)}°)`,
@@ -91,7 +94,7 @@ export function absToWorkoutState(analysis: AbsAnalysis): WorkoutState {
           invalidReason: analysis.lastRepComplete.valid ? undefined : "Curl higher",
         }
       : null,
-    cameraHint: "Side view on the floor; shoulders, hips, and knees visible.",
+    cameraHint: "Front or side view — show shoulders, hips, and knees.",
     debugLines,
   };
 }

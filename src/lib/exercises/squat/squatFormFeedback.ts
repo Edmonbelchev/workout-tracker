@@ -77,6 +77,7 @@ export function getFormFeedback(
   attempt: RepAttempt | null,
 ): string | null {
   if (
+    metrics.cameraView === "side" &&
     metrics.torsoInclination !== null &&
     metrics.torsoInclination > rules.maxTorsoInclination &&
     (phase === "descending" || phase === "bottom")

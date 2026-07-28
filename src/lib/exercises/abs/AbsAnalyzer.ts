@@ -59,7 +59,14 @@ export const EMPTY_ABS_ANALYSIS: AbsAnalysis = {
   exerciseName: "Abs",
   trackingQuality: "poor",
   phase: "flat",
-  metrics: { leftHipFlexion: null, rightHipFlexion: null, averageHipFlexion: null },
+  metrics: {
+    cameraView: "unknown",
+    leftHipFlexion: null,
+    rightHipFlexion: null,
+    averageHipFlexion: null,
+    torsoCurlAngle: null,
+    flexionAngle: null,
+  },
   smoothedHipAngle: null,
   reps: 0,
   invalidReps: 0,
@@ -110,17 +117,17 @@ export class AbsAnalyzer implements ExerciseAnalyzer<AbsAnalysis> {
     const metrics = calculateAbsMetrics(pose);
     const quality = trackingQuality ?? assessAbsTrackingQuality(pose);
 
-    if (quality === "poor" || metrics.averageHipFlexion === null) {
+    if (quality === "poor" || metrics.flexionAngle === null) {
       this.hipSmoother.reset();
       this.coachingMessage = null;
       return this.buildAnalysis(
         metrics,
         quality,
-        "Show shoulders, hips, and knees from the side",
+        "Show shoulders, hips, and knees to the camera",
       );
     }
 
-    const smoothedHip = this.hipSmoother.update(metrics.averageHipFlexion);
+    const smoothedHip = this.hipSmoother.update(metrics.flexionAngle);
     this.updatePhase(smoothedHip);
 
     return this.buildAnalysis(metrics, quality, this.feedback, smoothedHip);

@@ -3,26 +3,33 @@ import {
   calculateTorsoInclination,
   midpoint,
 } from "@/lib/geometry/calculateAngle";
-import type { Pose } from "@/lib/pose/types";
+import { squatFlexionAngle } from "@/lib/geometry/flexionSignal";
+import { detectCameraView, type CameraView } from "@/lib/pose/cameraView";
+import type { Pose, TrackingQuality } from "@/lib/pose/types";
 
 /** Raw joint measurements derived from a pose — no state machine or rep logic. */
 export interface SquatMetrics {
+  cameraView: CameraView;
   leftKneeAngle: number | null;
   rightKneeAngle: number | null;
   leftHipAngle: number | null;
   rightHipAngle: number | null;
   torsoInclination: number | null;
-  /** Mean of available knee angles — useful for squat phase detection later. */
+  /** Mean of available knee angles — shown in HUD. */
   averageKneeAngle: number | null;
+  /** View-aware depth signal used for rep counting. */
+  flexionAngle: number | null;
 }
 
 export const EMPTY_SQUAT_METRICS: SquatMetrics = {
+  cameraView: "unknown",
   leftKneeAngle: null,
   rightKneeAngle: null,
   leftHipAngle: null,
   rightHipAngle: null,
   torsoInclination: null,
   averageKneeAngle: null,
+  flexionAngle: null,
 };
 
 /**
@@ -33,6 +40,8 @@ export const EMPTY_SQUAT_METRICS: SquatMetrics = {
  */
 export function calculateSquatMetrics(pose: Pose | null): SquatMetrics {
   if (!pose) return EMPTY_SQUAT_METRICS;
+
+  const cameraView = detectCameraView(pose);
 
   const leftKneeAngle = calculateAngleSafe(
     pose.leftHip,
@@ -81,14 +90,70 @@ export function calculateSquatMetrics(pose: Pose | null): SquatMetrics {
       ? kneeAngles.reduce((sum, angle) => sum + angle, 0) / kneeAngles.length
       : null;
 
+  const flexionAngle = squatFlexionAngle(
+    leftKneeAngle,
+    rightKneeAngle,
+    leftHipAngle,
+    rightHipAngle,
+    cameraView,
+  );
+
   return {
+    cameraView,
     leftKneeAngle,
     rightKneeAngle,
     leftHipAngle,
     rightHipAngle,
     torsoInclination,
     averageKneeAngle,
+    flexionAngle,
   };
+}
+
+function hasLegChain(pose: Pose, side: "left" | "right"): boolean {
+  const hip = side === "left" ? pose.leftHip : pose.rightHip;
+  const knee = side === "left" ? pose.leftKnee : pose.rightKnee;
+  const ankle = side === "left" ? pose.leftAnkle : pose.rightAnkle;
+
+  return (
+    hip !== undefined &&
+    knee !== undefined &&
+    ankle !== undefined &&
+    hip.confidence >= 0.5 &&
+    knee.confidence >= 0.5 &&
+    ankle.confidence >= 0.5
+  );
+}
+
+export function assessSquatTrackingQuality(pose: Pose | null): TrackingQuality {
+  if (!pose) return "poor";
+
+  const view = detectCameraView(pose);
+
+  if (view === "front") {
+    const visible = [
+      "leftShoulder",
+      "rightShoulder",
+      "leftHip",
+      "rightHip",
+      "leftKnee",
+      "rightKnee",
+      "leftAnkle",
+      "rightAnkle",
+    ].filter((key) => {
+      const point = pose[key as keyof Pose];
+      return point !== undefined && point.confidence >= 0.5;
+    }).length;
+
+    return visible >= 7 ? "good" : "poor";
+  }
+
+  const oneLeg = hasLegChain(pose, "left") || hasLegChain(pose, "right");
+  const oneShoulder =
+    (pose.leftShoulder !== undefined && pose.leftShoulder.confidence >= 0.5) ||
+    (pose.rightShoulder !== undefined && pose.rightShoulder.confidence >= 0.5);
+
+  return oneLeg && oneShoulder ? "good" : "poor";
 }
 
 export { formatAngle } from "@/lib/geometry/formatAngle";

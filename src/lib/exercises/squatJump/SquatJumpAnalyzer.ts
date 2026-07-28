@@ -9,6 +9,7 @@ import {
 } from "@/lib/exercises/squatJump/squatJumpFormFeedback";
 import {
   calculateSquatJumpMetrics,
+  EMPTY_SQUAT_JUMP_METRICS,
   type SquatJumpMetrics,
 } from "@/lib/exercises/squatJump/squatJumpMetrics";
 import {
@@ -19,7 +20,7 @@ import {
   type SquatJumpPhase,
   type SquatJumpRules,
 } from "@/lib/exercises/squatJump/squatJumpRules";
-import { assessTrackingQuality } from "@/lib/pose/normalizePose";
+import { assessSquatTrackingQuality } from "@/lib/exercises/squat/squatMetrics";
 import { ExponentialMovingAverage } from "@/lib/geometry/smoothing";
 import type { Pose, TrackingQuality } from "@/lib/pose/types";
 
@@ -59,7 +60,9 @@ export const EMPTY_SQUAT_JUMP_ANALYSIS: SquatJumpAnalysis = {
   exerciseName: "Squat jump",
   trackingQuality: "poor",
   phase: "standing",
-  metrics: { hipMidY: null, hipDeltaY: null, leftKneeAngle: null, rightKneeAngle: null, leftHipAngle: null, rightHipAngle: null, torsoInclination: null, averageKneeAngle: null },
+  metrics: {
+    ...EMPTY_SQUAT_JUMP_METRICS,
+  },
   smoothedKneeAngle: null,
   reps: 0,
   invalidReps: 0,
@@ -109,19 +112,19 @@ export class SquatJumpAnalyzer implements ExerciseAnalyzer<SquatJumpAnalysis> {
 
   analyze(pose: Pose | null, trackingQuality?: TrackingQuality): SquatJumpAnalysis {
     const metrics = calculateSquatJumpMetrics(pose, this.previousHipMidY);
-    const quality = trackingQuality ?? assessTrackingQuality(pose);
+    const quality = trackingQuality ?? assessSquatTrackingQuality(pose);
 
     if (metrics.hipMidY !== null) {
       this.previousHipMidY = metrics.hipMidY;
     }
 
-    if (quality === "poor" || metrics.averageKneeAngle === null) {
+    if (quality === "poor" || metrics.flexionAngle === null) {
       this.kneeSmoother.reset();
       this.coachingMessage = null;
       return this.buildAnalysis(metrics, quality, "Move so your full body is visible");
     }
 
-    const smoothedKnee = this.kneeSmoother.update(metrics.averageKneeAngle);
+    const smoothedKnee = this.kneeSmoother.update(metrics.flexionAngle);
     this.updatePhase(smoothedKnee, metrics);
 
     return this.buildAnalysis(metrics, quality, this.feedback, smoothedKnee);

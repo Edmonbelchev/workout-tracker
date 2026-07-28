@@ -1,18 +1,29 @@
-import { calculateAngleSafe, midpoint } from "@/lib/geometry/calculateAngle";
+import {
+  bestFlexionAngle,
+  calculateAngleSafe,
+  midpoint,
+} from "@/lib/geometry/calculateAngle";
+import { elbowFlexionAngle } from "@/lib/geometry/flexionSignal";
+import { detectCameraView, type CameraView } from "@/lib/pose/cameraView";
 import type { Pose, TrackingQuality } from "@/lib/pose/types";
 
 export interface PushupMetrics {
+  cameraView: CameraView;
   leftElbowAngle: number | null;
   rightElbowAngle: number | null;
   averageElbowAngle: number | null;
-  /** Shoulder → hip → ankle; ~180° = straight body line. */
+  /** View-aware elbow flexion used for rep counting. */
+  flexionAngle: number | null;
+  /** Shoulder → hip → ankle; ~180° = straight body line (meaningful in side view). */
   bodyLineAngle: number | null;
 }
 
 export const EMPTY_PUSHUP_METRICS: PushupMetrics = {
+  cameraView: "unknown",
   leftElbowAngle: null,
   rightElbowAngle: null,
   averageElbowAngle: null,
+  flexionAngle: null,
   bodyLineAngle: null,
 };
 
@@ -29,8 +40,28 @@ export const PUSHUP_REQUIRED_LANDMARKS: (keyof Pose)[] = [
 
 const MIN_CONFIDENCE = 0.5;
 
+function hasArmChain(
+  pose: Pose,
+  side: "left" | "right",
+): boolean {
+  const shoulder = side === "left" ? pose.leftShoulder : pose.rightShoulder;
+  const elbow = side === "left" ? pose.leftElbow : pose.rightElbow;
+  const wrist = side === "left" ? pose.leftWrist : pose.rightWrist;
+
+  return (
+    shoulder !== undefined &&
+    elbow !== undefined &&
+    wrist !== undefined &&
+    shoulder.confidence >= MIN_CONFIDENCE &&
+    elbow.confidence >= MIN_CONFIDENCE &&
+    wrist.confidence >= MIN_CONFIDENCE
+  );
+}
+
 export function calculatePushupMetrics(pose: Pose | null): PushupMetrics {
   if (!pose) return EMPTY_PUSHUP_METRICS;
+
+  const cameraView = detectCameraView(pose);
 
   const leftElbowAngle = calculateAngleSafe(
     pose.leftShoulder,
@@ -50,6 +81,12 @@ export function calculatePushupMetrics(pose: Pose | null): PushupMetrics {
     elbowAngles.length > 0
       ? elbowAngles.reduce((sum, a) => sum + a, 0) / elbowAngles.length
       : null;
+
+  const flexionAngle = elbowFlexionAngle(
+    leftElbowAngle,
+    rightElbowAngle,
+    cameraView,
+  );
 
   let bodyLineAngle: number | null = null;
   if (
@@ -74,9 +111,11 @@ export function calculatePushupMetrics(pose: Pose | null): PushupMetrics {
   }
 
   return {
+    cameraView,
     leftElbowAngle,
     rightElbowAngle,
     averageElbowAngle,
+    flexionAngle,
     bodyLineAngle,
   };
 }
@@ -84,10 +123,32 @@ export function calculatePushupMetrics(pose: Pose | null): PushupMetrics {
 export function assessPushupTrackingQuality(pose: Pose | null): TrackingQuality {
   if (!pose) return "poor";
 
-  const visible = PUSHUP_REQUIRED_LANDMARKS.filter((key) => {
-    const point = pose[key];
-    return point !== undefined && point.confidence >= MIN_CONFIDENCE;
-  }).length;
+  const view = detectCameraView(pose);
+  const hipsVisible =
+    pose.leftHip !== undefined &&
+    pose.rightHip !== undefined &&
+    pose.leftHip.confidence >= MIN_CONFIDENCE &&
+    pose.rightHip.confidence >= MIN_CONFIDENCE;
 
-  return visible >= PUSHUP_REQUIRED_LANDMARKS.length - 1 ? "good" : "poor";
+  if (!hipsVisible) return "poor";
+
+  if (view === "front") {
+    const visible = PUSHUP_REQUIRED_LANDMARKS.filter((key) => {
+      const point = pose[key];
+      return point !== undefined && point.confidence >= MIN_CONFIDENCE;
+    }).length;
+
+    return visible >= PUSHUP_REQUIRED_LANDMARKS.length - 1 ? "good" : "poor";
+  }
+
+  const oneArm = hasArmChain(pose, "left") || hasArmChain(pose, "right");
+  const oneShoulder =
+    (pose.leftShoulder !== undefined &&
+      pose.leftShoulder.confidence >= MIN_CONFIDENCE) ||
+    (pose.rightShoulder !== undefined &&
+      pose.rightShoulder.confidence >= MIN_CONFIDENCE);
+
+  return oneArm && oneShoulder ? "good" : "poor";
 }
+
+export { bestFlexionAngle };

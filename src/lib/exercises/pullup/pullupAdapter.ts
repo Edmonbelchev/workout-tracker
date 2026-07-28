@@ -6,6 +6,7 @@ import {
   type PullupStateTransition,
 } from "@/lib/exercises/pullup/PullupAnalyzer";
 import { formatAngle } from "@/lib/geometry/formatAngle";
+import { formatCameraView } from "@/lib/pose/cameraView";
 import type {
   ExerciseAnalyzerAdapter,
   ExerciseAnalyzerFactoryOptions,
@@ -65,6 +66,8 @@ export function pullupToWorkoutState(analysis: PullupAnalysis): WorkoutState {
   ];
 
   const debugLines = [
+    `View: ${formatCameraView(analysis.metrics.cameraView)}`,
+    `Flexion: ${formatAngle(analysis.metrics.flexionAngle)}`,
     `Smoothed elbow: ${formatAngle(analysis.smoothedElbowAngle)}`,
     `Wrist clearance: ${analysis.metrics.wristClearance?.toFixed(4) ?? "—"}`,
     ...analysis.transitionLog.map(
@@ -98,7 +101,7 @@ export function pullupToWorkoutState(analysis: PullupAnalysis): WorkoutState {
           invalidReason: analysis.lastRepComplete.valid ? undefined : "Pull higher",
         }
       : null,
-    cameraHint: "Side view; full body visible with hands overhead.",
+    cameraHint: "Front, back, or side view — full body with hands overhead.",
     debugLines,
   };
 }

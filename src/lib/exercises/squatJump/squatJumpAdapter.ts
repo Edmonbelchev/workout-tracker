@@ -6,6 +6,7 @@ import {
   type SquatJumpStateTransition,
 } from "@/lib/exercises/squatJump/SquatJumpAnalyzer";
 import { formatAngle } from "@/lib/geometry/formatAngle";
+import { formatCameraView } from "@/lib/pose/cameraView";
 import type {
   ExerciseAnalyzerAdapter,
   ExerciseAnalyzerFactoryOptions,
@@ -66,6 +67,8 @@ export function squatJumpToWorkoutState(analysis: SquatJumpAnalysis): WorkoutSta
   ];
 
   const debugLines = [
+    `View: ${formatCameraView(analysis.metrics.cameraView)}`,
+    `Flexion: ${formatAngle(analysis.metrics.flexionAngle)}`,
     `Smoothed knee: ${formatAngle(analysis.smoothedKneeAngle)}`,
     `Hip mid Y: ${analysis.metrics.hipMidY?.toFixed(4) ?? "—"}`,
     `Hip delta Y: ${analysis.metrics.hipDeltaY?.toFixed(4) ?? "—"}`,
@@ -100,7 +103,7 @@ export function squatJumpToWorkoutState(analysis: SquatJumpAnalysis): WorkoutSta
           invalidReason: analysis.lastRepComplete.valid ? undefined : "Jump higher",
         }
       : null,
-    cameraHint: "Full body in frame; feet must stay visible on landing.",
+    cameraHint: "Front or side view — full body with feet visible.",
     debugLines,
   };
 }

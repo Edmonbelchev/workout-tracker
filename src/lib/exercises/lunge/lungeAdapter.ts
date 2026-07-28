@@ -1,10 +1,11 @@
 import {
-  formatDepthStatus,
-  formatSquatPhase,
-  SquatAnalyzer,
-  type SquatAnalysis,
-  type StateTransition,
-} from "@/lib/exercises/squat/SquatAnalyzer";
+  formatLungeDepthStatus,
+  formatLungePhase,
+  LungeAnalyzer,
+  type LungeAnalysis,
+  type LungeStateTransition,
+} from "@/lib/exercises/lunge/LungeAnalyzer";
+import { legLabel } from "@/lib/exercises/lunge/lungeFormFeedback";
 import { formatAngle } from "@/lib/geometry/formatAngle";
 import { formatCameraView } from "@/lib/pose/cameraView";
 import type {
@@ -14,11 +15,11 @@ import type {
   WorkoutState,
 } from "@/lib/exercises/types";
 
-export function createSquatAdapter(
+export function createLungeAdapter(
   options: ExerciseAnalyzerFactoryOptions = {},
-): ExerciseAnalyzerAdapter<SquatAnalysis> {
-  const analyzer = new SquatAnalyzer({
-    onTransition: (transition: StateTransition) => {
+): ExerciseAnalyzerAdapter<LungeAnalysis> {
+  const analyzer = new LungeAnalyzer({
+    onTransition: (transition: LungeStateTransition) => {
       if (options.debug) {
         options.onTransition?.(
           `${transition.from.toUpperCase()} → ${transition.to.toUpperCase()} (${transition.kneeAngle?.toFixed(1)}°)`,
@@ -35,14 +36,17 @@ export function createSquatAdapter(
     },
   });
 
-  return { analyzer, toWorkoutState: squatToWorkoutState };
+  return { analyzer, toWorkoutState: lungeToWorkoutState };
 }
 
-export function squatToWorkoutState(analysis: SquatAnalysis): WorkoutState {
+export function lungeToWorkoutState(analysis: LungeAnalysis): WorkoutState {
+  const legValue = analysis.activeLeg ? legLabel(analysis.activeLeg) : "—";
+
   const hudFields: HudField[] = [
+    { label: "Leg", value: legValue, variant: "phase" },
     {
       label: "Depth",
-      value: formatDepthStatus(analysis.depthStatus),
+      value: formatLungeDepthStatus(analysis.depthStatus),
       variant:
         analysis.depthStatus === "good"
           ? "good"
@@ -52,39 +56,25 @@ export function squatToWorkoutState(analysis: SquatAnalysis): WorkoutState {
     },
     { label: "Left knee", value: formatAngle(analysis.metrics.leftKneeAngle) },
     { label: "Right knee", value: formatAngle(analysis.metrics.rightKneeAngle) },
-    {
-      label: "Feedback",
-      value: analysis.feedback,
-      variant: analysis.trackingQuality === "good" ? "good" : "warn",
-    },
   ];
 
   const debugLines = [
     `View: ${formatCameraView(analysis.metrics.cameraView)}`,
+    `Leg: ${legValue}`,
     `Flexion: ${formatAngle(analysis.metrics.flexionAngle)}`,
-    `Smoothed knee: ${formatAngle(analysis.smoothedKneeAngle)}`,
-    `Left hip: ${formatAngle(analysis.metrics.leftHipAngle)}`,
-    `Right hip: ${formatAngle(analysis.metrics.rightHipAngle)}`,
-    `Torso: ${formatAngle(analysis.metrics.torsoInclination)}`,
     ...analysis.transitionLog.map(
       (t) => `${t.from} → ${t.to} (${t.kneeAngle?.toFixed(1)}°)`,
     ),
   ];
 
-  if (analysis.lastRepComplete) {
-    debugLines.unshift(
-      `Last rep: ${analysis.lastRepComplete.valid ? "VALID" : "INVALID"} (deepest ${analysis.lastRepComplete.deepestKneeAngle.toFixed(1)}°)`,
-    );
-  }
-
   return {
-    exerciseId: "squat",
-    exerciseName: "Squat",
+    exerciseId: "lunge",
+    exerciseName: "Lunge",
     trackingQuality: analysis.trackingQuality,
     isAvailable: true,
     reps: analysis.reps,
     invalidReps: analysis.invalidReps,
-    phase: formatSquatPhase(analysis.phase),
+    phase: formatLungePhase(analysis.phase),
     feedback: analysis.feedback,
     coachingMessage: analysis.coachingMessage,
     isActivePhase: analysis.phase !== "standing",
@@ -97,7 +87,7 @@ export function squatToWorkoutState(analysis: SquatAnalysis): WorkoutState {
           invalidReason: analysis.lastRepComplete.valid ? undefined : "Go slightly deeper",
         }
       : null,
-    cameraHint: "Front or side view — keep your full body in frame.",
+    cameraHint: "Front or side view — full body with room to step forward.",
     debugLines,
   };
 }

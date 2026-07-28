@@ -6,7 +6,12 @@ export type ExerciseId =
   | "push-up"
   | "pull-up"
   | "squat-jump"
-  | "abs";
+  | "abs"
+  | "lunge"
+  | "jumping-jack"
+  | "plank"
+  | "burpee"
+  | "dips";
 
 export type ExerciseStatus = "available" | "coming-soon";
 
@@ -57,6 +62,8 @@ export interface WorkoutState {
   lastRepComplete: RepCompleteEvent | null;
   cameraHint: string;
   debugLines: string[];
+  /** Override bottom-right counter label (default: "Reps"). */
+  counterLabel?: string;
 }
 
 export const EMPTY_WORKOUT_STATE: WorkoutState = {

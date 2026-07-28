@@ -111,7 +111,7 @@ export class PushupAnalyzer implements ExerciseAnalyzer<PushupAnalysis> {
     const metrics = calculatePushupMetrics(pose);
     const quality = trackingQuality ?? assessPushupTrackingQuality(pose);
 
-    if (quality === "poor" || metrics.averageElbowAngle === null) {
+    if (quality === "poor" || metrics.flexionAngle === null) {
       this.elbowSmoother.reset();
       this.coachingMessage = null;
       return this.buildAnalysis(
@@ -121,7 +121,7 @@ export class PushupAnalyzer implements ExerciseAnalyzer<PushupAnalysis> {
       );
     }
 
-    const smoothedElbow = this.elbowSmoother.update(metrics.averageElbowAngle);
+    const smoothedElbow = this.elbowSmoother.update(metrics.flexionAngle);
     this.updatePhase(smoothedElbow, metrics);
 
     return this.buildAnalysis(metrics, quality, this.feedback, smoothedElbow);

@@ -25,6 +25,7 @@ function createSmoothers() {
     rightHip: new ExponentialMovingAverage(0.3),
     torso: new ExponentialMovingAverage(0.3),
     averageKnee: new ExponentialMovingAverage(0.3),
+    flexion: new ExponentialMovingAverage(0.3),
   };
 }
 
@@ -33,12 +34,14 @@ function smoothMetrics(
   smoothers: ReturnType<typeof createSmoothers>,
 ): SquatMetrics {
   return {
+    cameraView: raw.cameraView,
     leftKneeAngle: smoothNullable(smoothers.leftKnee, raw.leftKneeAngle),
     rightKneeAngle: smoothNullable(smoothers.rightKnee, raw.rightKneeAngle),
     leftHipAngle: smoothNullable(smoothers.leftHip, raw.leftHipAngle),
     rightHipAngle: smoothNullable(smoothers.rightHip, raw.rightHipAngle),
     torsoInclination: smoothNullable(smoothers.torso, raw.torsoInclination),
     averageKneeAngle: smoothNullable(smoothers.averageKnee, raw.averageKneeAngle),
+    flexionAngle: smoothNullable(smoothers.flexion, raw.flexionAngle),
   };
 }
 

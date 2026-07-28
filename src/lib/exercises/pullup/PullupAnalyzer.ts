@@ -62,9 +62,11 @@ export const EMPTY_PULLUP_ANALYSIS: PullupAnalysis = {
   trackingQuality: "poor",
   phase: "hanging",
   metrics: {
+    cameraView: "unknown",
     leftElbowAngle: null,
     rightElbowAngle: null,
     averageElbowAngle: null,
+    flexionAngle: null,
     wristClearance: null,
   },
   smoothedElbowAngle: null,
@@ -117,7 +119,7 @@ export class PullupAnalyzer implements ExerciseAnalyzer<PullupAnalysis> {
     const metrics = calculatePullupMetrics(pose);
     const quality = trackingQuality ?? assessPullupTrackingQuality(pose);
 
-    if (quality === "poor" || metrics.averageElbowAngle === null) {
+    if (quality === "poor" || metrics.flexionAngle === null) {
       this.elbowSmoother.reset();
       this.coachingMessage = null;
       return this.buildAnalysis(
@@ -127,7 +129,7 @@ export class PullupAnalyzer implements ExerciseAnalyzer<PullupAnalysis> {
       );
     }
 
-    const smoothedElbow = this.elbowSmoother.update(metrics.averageElbowAngle);
+    const smoothedElbow = this.elbowSmoother.update(metrics.flexionAngle);
     this.updatePhase(smoothedElbow, metrics);
 
     return this.buildAnalysis(metrics, quality, this.feedback, smoothedElbow);

@@ -70,6 +70,7 @@ export function getPushupFormFeedback(
   attempt: PushupRepAttempt | null,
 ): string | null {
   if (
+    metrics.cameraView === "side" &&
     metrics.bodyLineAngle !== null &&
     metrics.bodyLineAngle < rules.minBodyLineAngle &&
     (phase === "plank" || phase === "descending" || phase === "bottom")

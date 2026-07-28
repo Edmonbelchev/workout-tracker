@@ -1,18 +1,29 @@
-import { calculateAngleSafe, midpoint } from "@/lib/geometry/calculateAngle";
+import {
+  bestFlexionAngle,
+  calculateAngleSafe,
+  midpoint,
+} from "@/lib/geometry/calculateAngle";
+import { pullupFlexionAngle } from "@/lib/geometry/flexionSignal";
+import { detectCameraView, isCoronalView, type CameraView } from "@/lib/pose/cameraView";
 import type { Pose, TrackingQuality } from "@/lib/pose/types";
 
 export interface PullupMetrics {
+  cameraView: CameraView;
   leftElbowAngle: number | null;
   rightElbowAngle: number | null;
   averageElbowAngle: number | null;
+  /** View-aware flexion used for rep counting. */
+  flexionAngle: number | null;
   /** Shoulder Y − wrist Y; positive = wrists above shoulders. */
   wristClearance: number | null;
 }
 
 export const EMPTY_PULLUP_METRICS: PullupMetrics = {
+  cameraView: "unknown",
   leftElbowAngle: null,
   rightElbowAngle: null,
   averageElbowAngle: null,
+  flexionAngle: null,
   wristClearance: null,
 };
 
@@ -27,8 +38,25 @@ export const PULLUP_REQUIRED_LANDMARKS: (keyof Pose)[] = [
 
 const MIN_CONFIDENCE = 0.5;
 
+function hasArmChain(pose: Pose, side: "left" | "right"): boolean {
+  const shoulder = side === "left" ? pose.leftShoulder : pose.rightShoulder;
+  const elbow = side === "left" ? pose.leftElbow : pose.rightElbow;
+  const wrist = side === "left" ? pose.leftWrist : pose.rightWrist;
+
+  return (
+    shoulder !== undefined &&
+    elbow !== undefined &&
+    wrist !== undefined &&
+    shoulder.confidence >= MIN_CONFIDENCE &&
+    elbow.confidence >= MIN_CONFIDENCE &&
+    wrist.confidence >= MIN_CONFIDENCE
+  );
+}
+
 export function calculatePullupMetrics(pose: Pose | null): PullupMetrics {
   if (!pose) return EMPTY_PULLUP_METRICS;
+
+  const cameraView = detectCameraView(pose);
 
   const leftElbowAngle = calculateAngleSafe(
     pose.leftShoulder,
@@ -65,10 +93,19 @@ export function calculatePullupMetrics(pose: Pose | null): PullupMetrics {
     wristClearance = shoulderMid.y - wristMid.y;
   }
 
+  const flexionAngle = pullupFlexionAngle(
+    leftElbowAngle,
+    rightElbowAngle,
+    wristClearance,
+    cameraView,
+  );
+
   return {
+    cameraView,
     leftElbowAngle,
     rightElbowAngle,
     averageElbowAngle,
+    flexionAngle,
     wristClearance,
   };
 }
@@ -76,12 +113,31 @@ export function calculatePullupMetrics(pose: Pose | null): PullupMetrics {
 export function assessPullupTrackingQuality(pose: Pose | null): TrackingQuality {
   if (!pose) return "poor";
 
-  const visible = PULLUP_REQUIRED_LANDMARKS.filter((key) => {
-    const point = pose[key];
-    return point !== undefined && point.confidence >= MIN_CONFIDENCE;
-  }).length;
+  const view = detectCameraView(pose);
 
-  return visible >= PULLUP_REQUIRED_LANDMARKS.length - 1 ? "good" : "poor";
+  if (isCoronalView(view)) {
+    const shoulders =
+      pose.leftShoulder !== undefined &&
+      pose.rightShoulder !== undefined &&
+      pose.leftShoulder.confidence >= MIN_CONFIDENCE &&
+      pose.rightShoulder.confidence >= MIN_CONFIDENCE;
+    const wrists =
+      pose.leftWrist !== undefined &&
+      pose.rightWrist !== undefined &&
+      pose.leftWrist.confidence >= MIN_CONFIDENCE &&
+      pose.rightWrist.confidence >= MIN_CONFIDENCE;
+
+    return shoulders && wrists ? "good" : "poor";
+  }
+
+  const oneArm = hasArmChain(pose, "left") || hasArmChain(pose, "right");
+  const oneShoulder =
+    (pose.leftShoulder !== undefined &&
+      pose.leftShoulder.confidence >= MIN_CONFIDENCE) ||
+    (pose.rightShoulder !== undefined &&
+      pose.rightShoulder.confidence >= MIN_CONFIDENCE);
+
+  return oneArm && oneShoulder ? "good" : "poor";
 }
 
 export function isAtTop(
@@ -107,3 +163,5 @@ export function isOutOfTop(
   }
   return false;
 }
+
+export { bestFlexionAngle };

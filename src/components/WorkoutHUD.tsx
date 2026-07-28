@@ -31,9 +31,11 @@ export function WorkoutHUD({ workout }: WorkoutHUDProps) {
       </div>
 
       <div className="shrink-0 rounded-xl border border-emerald-500/40 bg-zinc-950/85 px-4 py-2.5 text-center shadow-lg shadow-black/40 backdrop-blur-md sm:px-5 sm:py-3">
-        <p className="text-[10px] uppercase tracking-wider text-zinc-500">Reps</p>
+        <p className="text-[10px] uppercase tracking-wider text-zinc-500">
+          {workout.counterLabel ?? "Reps"}
+        </p>
         <p className="text-4xl font-bold tabular-nums leading-none text-emerald-400 sm:text-5xl">
-          {workout.reps}
+          {workout.counterLabel === "Time" ? `${workout.reps}s` : workout.reps}
         </p>
       </div>
     </div>
