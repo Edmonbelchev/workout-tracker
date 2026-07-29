@@ -65,6 +65,7 @@ export const EMPTY_SQUAT_ANALYSIS: SquatAnalysis = {
     leftHipAngle: null,
     rightHipAngle: null,
     torsoInclination: null,
+    hipAnkleGap: null,
     averageKneeAngle: null,
     flexionAngle: null,
   },

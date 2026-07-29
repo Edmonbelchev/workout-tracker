@@ -40,6 +40,7 @@ function smoothMetrics(
     leftHipAngle: smoothNullable(smoothers.leftHip, raw.leftHipAngle),
     rightHipAngle: smoothNullable(smoothers.rightHip, raw.rightHipAngle),
     torsoInclination: smoothNullable(smoothers.torso, raw.torsoInclination),
+    hipAnkleGap: raw.hipAnkleGap,
     averageKneeAngle: smoothNullable(smoothers.averageKnee, raw.averageKneeAngle),
     flexionAngle: smoothNullable(smoothers.flexion, raw.flexionAngle),
   };

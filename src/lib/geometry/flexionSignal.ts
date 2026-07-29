@@ -1,26 +1,46 @@
 import { bestFlexionAngle } from "@/lib/geometry/calculateAngle";
 import { isCoronalView, type CameraView } from "@/lib/pose/cameraView";
 
-/** Squat depth signal — knee flexion; from front also blends hip flexion. */
+/** Map hip–ankle vertical separation to a knee-like flexion angle (180° = standing). */
+const STANDING_HIP_ANKLE_GAP = 0.36;
+const DEEP_HIP_ANKLE_GAP = 0.17;
+const GAP_TO_ANGLE_RANGE = 88;
+
+export function hipAnkleGapToSquatAngle(gap: number): number {
+  const depth = clamp(
+    (STANDING_HIP_ANKLE_GAP - gap) / (STANDING_HIP_ANKLE_GAP - DEEP_HIP_ANKLE_GAP),
+    0,
+    1,
+  );
+  return 180 - depth * GAP_TO_ANGLE_RANGE;
+}
+
+/**
+ * Unified squat depth signal — uses the deepest reading across knee, hip, and
+ * vertical hip drop so front, back, and side views share one threshold scale.
+ */
 export function squatFlexionAngle(
   leftKnee: number | null,
   rightKnee: number | null,
   leftHip: number | null,
   rightHip: number | null,
+  hipAnkleGap: number | null,
   view: CameraView,
 ): number | null {
+  void view;
+
   const knee = bestFlexionAngle(leftKnee, rightKnee);
+  const hip = bestFlexionAngle(leftHip, rightHip);
+  const gapAngle =
+    hipAnkleGap !== null ? hipAnkleGapToSquatAngle(hipAnkleGap) : null;
 
-  if (isCoronalView(view)) {
-    const hip = bestFlexionAngle(leftHip, rightHip);
-    if (knee !== null && hip !== null) return Math.min(knee, hip);
-    return knee ?? hip;
-  }
+  const signals = [knee, hip, gapAngle].filter((value): value is number => value !== null);
+  if (signals.length === 0) return null;
 
-  return knee;
+  return Math.min(...signals);
 }
 
-/** Push-up / pull-up elbow flexion — uses the more bent arm in profile. */
+/** Push-up / dip elbow flexion — uses the more bent arm in profile. */
 export function elbowFlexionAngle(
   left: number | null,
   right: number | null,
@@ -69,4 +89,8 @@ export function absFlexionAngle(
   }
 
   return hip;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

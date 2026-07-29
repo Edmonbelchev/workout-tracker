@@ -4,7 +4,7 @@ import {
   midpoint,
 } from "@/lib/geometry/calculateAngle";
 import { squatFlexionAngle } from "@/lib/geometry/flexionSignal";
-import { detectCameraView, type CameraView } from "@/lib/pose/cameraView";
+import { detectCameraView, isCoronalView, type CameraView } from "@/lib/pose/cameraView";
 import type { Pose, TrackingQuality } from "@/lib/pose/types";
 
 /** Raw joint measurements derived from a pose — no state machine or rep logic. */
@@ -15,9 +15,11 @@ export interface SquatMetrics {
   leftHipAngle: number | null;
   rightHipAngle: number | null;
   torsoInclination: number | null;
+  /** Ankle Y − hip Y; shrinks as the athlete squats deeper. */
+  hipAnkleGap: number | null;
   /** Mean of available knee angles — shown in HUD. */
   averageKneeAngle: number | null;
-  /** View-aware depth signal used for rep counting. */
+  /** Unified depth signal used for rep counting. */
   flexionAngle: number | null;
 }
 
@@ -28,6 +30,7 @@ export const EMPTY_SQUAT_METRICS: SquatMetrics = {
   leftHipAngle: null,
   rightHipAngle: null,
   torsoInclination: null,
+  hipAnkleGap: null,
   averageKneeAngle: null,
   flexionAngle: null,
 };
@@ -82,6 +85,22 @@ export function calculateSquatMetrics(pose: Pose | null): SquatMetrics {
     torsoInclination = Number.isFinite(angle) ? angle : null;
   }
 
+  let hipAnkleGap: number | null = null;
+  if (
+    pose.leftHip &&
+    pose.rightHip &&
+    pose.leftAnkle &&
+    pose.rightAnkle &&
+    pose.leftHip.confidence >= 0.5 &&
+    pose.rightHip.confidence >= 0.5 &&
+    pose.leftAnkle.confidence >= 0.5 &&
+    pose.rightAnkle.confidence >= 0.5
+  ) {
+    const hipMid = midpoint(pose.leftHip, pose.rightHip);
+    const ankleMid = midpoint(pose.leftAnkle, pose.rightAnkle);
+    hipAnkleGap = ankleMid.y - hipMid.y;
+  }
+
   const kneeAngles = [leftKneeAngle, rightKneeAngle].filter(
     (angle): angle is number => angle !== null,
   );
@@ -95,6 +114,7 @@ export function calculateSquatMetrics(pose: Pose | null): SquatMetrics {
     rightKneeAngle,
     leftHipAngle,
     rightHipAngle,
+    hipAnkleGap,
     cameraView,
   );
 
@@ -105,6 +125,7 @@ export function calculateSquatMetrics(pose: Pose | null): SquatMetrics {
     leftHipAngle,
     rightHipAngle,
     torsoInclination,
+    hipAnkleGap,
     averageKneeAngle,
     flexionAngle,
   };
@@ -130,7 +151,7 @@ export function assessSquatTrackingQuality(pose: Pose | null): TrackingQuality {
 
   const view = detectCameraView(pose);
 
-  if (view === "front") {
+  if (isCoronalView(view)) {
     const visible = [
       "leftShoulder",
       "rightShoulder",

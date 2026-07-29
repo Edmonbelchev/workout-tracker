@@ -30,7 +30,7 @@ export function evaluateCompletedRep(
     return { valid: false, feedback: "Ready" };
   }
 
-  if (attempt.reachedValidDepth) {
+  if (attempt.deepestKneeAngle <= rules.validDepthKneeAngleMax) {
     return { valid: true, feedback: "Good rep" };
   }
 
@@ -49,9 +49,7 @@ export function updateRepAttempt(
 ): RepAttempt {
   const deepestKneeAngle = Math.min(attempt.deepestKneeAngle, kneeAngle);
   const reachedValidDepth =
-    attempt.reachedValidDepth ||
-    kneeAngle <= rules.validDepthKneeAngleMax ||
-    phase === "bottom";
+    attempt.reachedValidDepth || kneeAngle <= rules.validDepthKneeAngleMax;
 
   return {
     ...attempt,

@@ -62,6 +62,7 @@ export function squatToWorkoutState(analysis: SquatAnalysis): WorkoutState {
   const debugLines = [
     `View: ${formatCameraView(analysis.metrics.cameraView)}`,
     `Flexion: ${formatAngle(analysis.metrics.flexionAngle)}`,
+    `Hip-ankle gap: ${analysis.metrics.hipAnkleGap?.toFixed(3) ?? "—"}`,
     `Smoothed knee: ${formatAngle(analysis.smoothedKneeAngle)}`,
     `Left hip: ${formatAngle(analysis.metrics.leftHipAngle)}`,
     `Right hip: ${formatAngle(analysis.metrics.rightHipAngle)}`,
