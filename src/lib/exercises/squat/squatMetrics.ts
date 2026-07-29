@@ -3,7 +3,6 @@ import {
   calculateTorsoInclination,
   midpoint,
 } from "@/lib/geometry/calculateAngle";
-import { squatFlexionAngle } from "@/lib/geometry/flexionSignal";
 import { detectCameraView, isCoronalView, type CameraView } from "@/lib/pose/cameraView";
 import type { Pose, TrackingQuality } from "@/lib/pose/types";
 
@@ -109,15 +108,6 @@ export function calculateSquatMetrics(pose: Pose | null): SquatMetrics {
       ? kneeAngles.reduce((sum, angle) => sum + angle, 0) / kneeAngles.length
       : null;
 
-  const flexionAngle = squatFlexionAngle(
-    leftKneeAngle,
-    rightKneeAngle,
-    leftHipAngle,
-    rightHipAngle,
-    hipAnkleGap,
-    cameraView,
-  );
-
   return {
     cameraView,
     leftKneeAngle,
@@ -127,7 +117,7 @@ export function calculateSquatMetrics(pose: Pose | null): SquatMetrics {
     torsoInclination,
     hipAnkleGap,
     averageKneeAngle,
-    flexionAngle,
+    flexionAngle: null,
   };
 }
 

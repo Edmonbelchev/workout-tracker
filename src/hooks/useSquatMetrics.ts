@@ -7,6 +7,7 @@ import {
   EMPTY_SQUAT_METRICS,
   type SquatMetrics,
 } from "@/lib/exercises/squat/squatMetrics";
+import { computeSquatFlexionAngle } from "@/lib/geometry/flexionSignal";
 import { ExponentialMovingAverage, smoothNullable } from "@/lib/geometry/smoothing";
 import type { Pose } from "@/lib/pose/types";
 
@@ -69,7 +70,16 @@ export function useSquatMetrics({
     const tick = (now: number) => {
       if (now - lastUpdate >= UI_UPDATE_INTERVAL_MS) {
         const raw = calculateSquatMetrics(poseRef.current);
-        setMetrics(smoothMetrics(raw, smoothersRef.current));
+        const flexionAngle = computeSquatFlexionAngle({
+          leftKnee: raw.leftKneeAngle,
+          rightKnee: raw.rightKneeAngle,
+          leftHip: raw.leftHipAngle,
+          rightHip: raw.rightHipAngle,
+          hipAnkleGap: raw.hipAnkleGap,
+          view: raw.cameraView,
+          baselineHipAnkleGap: null,
+        });
+        setMetrics(smoothMetrics({ ...raw, flexionAngle }, smoothersRef.current));
         lastUpdate = now;
       }
 

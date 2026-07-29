@@ -21,6 +21,7 @@ import {
   type SquatJumpRules,
 } from "@/lib/exercises/squatJump/squatJumpRules";
 import { assessSquatTrackingQuality } from "@/lib/exercises/squat/squatMetrics";
+import { computeSquatFlexionAngle } from "@/lib/geometry/flexionSignal";
 import { ExponentialMovingAverage } from "@/lib/geometry/smoothing";
 import type { Pose, TrackingQuality } from "@/lib/pose/types";
 
@@ -103,6 +104,7 @@ export class SquatJumpAnalyzer implements ExerciseAnalyzer<SquatJumpAnalysis> {
   private coachingMessage: string | null = null;
   private lastRepComplete: SquatJumpRepCompleteEvent | null = null;
   private invalidFeedbackUntil = 0;
+  private baselineHipAnkleGap: number | null = null;
 
   constructor(options: SquatJumpAnalyzerOptions = {}) {
     this.rules = options.rules ?? DEFAULT_SQUAT_JUMP_RULES;
@@ -118,22 +120,39 @@ export class SquatJumpAnalyzer implements ExerciseAnalyzer<SquatJumpAnalysis> {
       this.previousHipMidY = metrics.hipMidY;
     }
 
-    if (quality === "poor" || metrics.flexionAngle === null) {
+    const flexionAngle = computeSquatFlexionAngle({
+      leftKnee: metrics.leftKneeAngle,
+      rightKnee: metrics.rightKneeAngle,
+      leftHip: metrics.leftHipAngle,
+      rightHip: metrics.rightHipAngle,
+      hipAnkleGap: metrics.hipAnkleGap,
+      view: metrics.cameraView,
+      baselineHipAnkleGap: this.baselineHipAnkleGap,
+    });
+
+    if (quality === "poor" || flexionAngle === null) {
       this.kneeSmoother.reset();
       this.coachingMessage = null;
       return this.buildAnalysis(metrics, quality, "Move so your full body is visible");
     }
 
-    const smoothedKnee = this.kneeSmoother.update(metrics.flexionAngle);
-    this.updatePhase(smoothedKnee, metrics);
+    const smoothedKnee = this.kneeSmoother.update(flexionAngle);
+    this.updateBaseline(metrics, smoothedKnee);
+    this.updatePhase(smoothedKnee, { ...metrics, flexionAngle });
 
-    return this.buildAnalysis(metrics, quality, this.feedback, smoothedKnee);
+    return this.buildAnalysis(
+      { ...metrics, flexionAngle },
+      quality,
+      this.feedback,
+      smoothedKnee,
+    );
   }
 
   reset(): void {
     this.phase = "standing";
     this.kneeSmoother.reset();
     this.previousHipMidY = null;
+    this.baselineHipAnkleGap = null;
     this.lastTransition = null;
     this.transitionLog = [];
     this.reps = 0;
@@ -144,6 +163,27 @@ export class SquatJumpAnalyzer implements ExerciseAnalyzer<SquatJumpAnalysis> {
     this.coachingMessage = null;
     this.lastRepComplete = null;
     this.invalidFeedbackUntil = 0;
+  }
+
+  private updateBaseline(metrics: SquatJumpMetrics, flexionAngle: number): void {
+    const hipAnkleGap = metrics.hipAnkleGap;
+    if (hipAnkleGap === null || this.phase !== "standing") return;
+
+    const standingKnee = metrics.averageKneeAngle;
+    const isStanding =
+      standingKnee !== null
+        ? standingKnee >= this.rules.standingReturnKneeAngleMin - 5
+        : flexionAngle >= this.rules.standingReturnKneeAngleMin - 5;
+
+    if (!isStanding) return;
+
+    if (this.baselineHipAnkleGap === null) {
+      this.baselineHipAnkleGap = hipAnkleGap;
+      return;
+    }
+
+    this.baselineHipAnkleGap =
+      this.baselineHipAnkleGap * 0.92 + hipAnkleGap * 0.08;
   }
 
   private updatePhase(kneeAngle: number, metrics: SquatJumpMetrics): void {

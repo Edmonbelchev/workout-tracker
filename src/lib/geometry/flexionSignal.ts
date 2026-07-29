@@ -1,42 +1,60 @@
 import { bestFlexionAngle } from "@/lib/geometry/calculateAngle";
 import { isCoronalView, type CameraView } from "@/lib/pose/cameraView";
 
-/** Map hip–ankle vertical separation to a knee-like flexion angle (180° = standing). */
-const STANDING_HIP_ANKLE_GAP = 0.36;
-const DEEP_HIP_ANKLE_GAP = 0.17;
-const GAP_TO_ANGLE_RANGE = 88;
+/** Deepest squat ≈ 42% reduction in hip–ankle gap from a standing baseline. */
+const DEEP_GAP_DROP_RATIO = 0.42;
+const GAP_TO_ANGLE_RANGE = 85;
 
-export function hipAnkleGapToSquatAngle(gap: number): number {
-  const depth = clamp(
-    (STANDING_HIP_ANKLE_GAP - gap) / (STANDING_HIP_ANKLE_GAP - DEEP_HIP_ANKLE_GAP),
-    0,
-    1,
-  );
-  return 180 - depth * GAP_TO_ANGLE_RANGE;
+/**
+ * Map hip drop relative to a per-session standing baseline to a flexion angle.
+ * At baseline → ~180°; deep squat → ~95°.
+ */
+export function baselineGapToSquatAngle(
+  gap: number,
+  baselineGap: number,
+): number {
+  const drop = clamp((baselineGap - gap) / (baselineGap * DEEP_GAP_DROP_RATIO), 0, 1);
+  return 180 - drop * GAP_TO_ANGLE_RANGE;
+}
+
+export interface SquatFlexionInput {
+  leftKnee: number | null;
+  rightKnee: number | null;
+  leftHip: number | null;
+  rightHip: number | null;
+  hipAnkleGap: number | null;
+  view: CameraView;
+  /** Calibrated while standing; required for coronal depth via hip drop. */
+  baselineHipAnkleGap: number | null;
 }
 
 /**
- * Unified squat depth signal — uses the deepest reading across knee, hip, and
- * vertical hip drop so front, back, and side views share one threshold scale.
+ * View-aware squat depth signal.
+ * - Side: knee flexion (most reliable in profile).
+ * - Front/back: hip flexion + baseline-relative hip drop.
  */
-export function squatFlexionAngle(
-  leftKnee: number | null,
-  rightKnee: number | null,
-  leftHip: number | null,
-  rightHip: number | null,
-  hipAnkleGap: number | null,
-  view: CameraView,
-): number | null {
-  void view;
+export function computeSquatFlexionAngle(input: SquatFlexionInput): number | null {
+  const knee = bestFlexionAngle(input.leftKnee, input.rightKnee);
+  const hip = bestFlexionAngle(input.leftHip, input.rightHip);
 
-  const knee = bestFlexionAngle(leftKnee, rightKnee);
-  const hip = bestFlexionAngle(leftHip, rightHip);
   const gapAngle =
-    hipAnkleGap !== null ? hipAnkleGapToSquatAngle(hipAnkleGap) : null;
+    input.hipAnkleGap !== null && input.baselineHipAnkleGap !== null
+      ? baselineGapToSquatAngle(input.hipAnkleGap, input.baselineHipAnkleGap)
+      : null;
 
+  if (input.view === "side") {
+    return knee;
+  }
+
+  if (isCoronalView(input.view)) {
+    const signals = [knee, hip, gapAngle].filter((value): value is number => value !== null);
+    if (signals.length > 0) return Math.min(...signals);
+    return null;
+  }
+
+  // Unknown view — prefer knee; fall back to hip/gap when knees foreshorten.
   const signals = [knee, hip, gapAngle].filter((value): value is number => value !== null);
   if (signals.length === 0) return null;
-
   return Math.min(...signals);
 }
 
@@ -66,7 +84,6 @@ export function pullupFlexionAngle(
     return elbow;
   }
 
-  // clearance 0 ≈ hang (~168°), 0.035 ≈ top (~93°)
   const proxy = 168 - (wristClearance / 0.035) * 75;
   const clamped = Math.max(70, Math.min(175, proxy));
 
@@ -93,4 +110,24 @@ export function absFlexionAngle(
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+/** @deprecated Use computeSquatFlexionAngle */
+export function squatFlexionAngle(
+  leftKnee: number | null,
+  rightKnee: number | null,
+  leftHip: number | null,
+  rightHip: number | null,
+  hipAnkleGap: number | null,
+  view: CameraView,
+): number | null {
+  return computeSquatFlexionAngle({
+    leftKnee,
+    rightKnee,
+    leftHip,
+    rightHip,
+    hipAnkleGap,
+    view,
+    baselineHipAnkleGap: null,
+  });
 }

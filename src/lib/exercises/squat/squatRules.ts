@@ -28,9 +28,10 @@ export interface SquatRules {
 export const DEFAULT_SQUAT_RULES: SquatRules = {
   standingKneeAngleMin: 160,
   descendingKneeAngleMax: 155,
-  bottomKneeAngleMax: 98,
-  bottomKneeAngleMin: 103,
-  standingReturnKneeAngleMin: 158,
+  /** Must be >= validDepthKneeAngleMax or reps never reach the bottom phase. */
+  bottomKneeAngleMax: 110,
+  bottomKneeAngleMin: 115,
+  standingReturnKneeAngleMin: 155,
   validDepthKneeAngleMax: 105,
   minimumDescentKneeAngleMax: 135,
   maxTorsoInclination: 35,
